@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import { Lock, Key, ChevronRight } from 'lucide-react';
-import SocialIcons from "./SocialIcons";
 import Footer from "../components/Footer";
 import Navbar from "../components/navbar";
 import { useAuth } from '../context/AuthContext'; 
 
 function Home() {
   const navigate = useNavigate();
-  const { userToken, setUserToken } = useAuth();
-  console.log("User Token in Home:", userToken);
+  const { userToken } = useAuth();
+  
+  useEffect(() => {
+    // Log the token when component mounts and when it changes
+    // console.log("User Token in Home:", userToken);
+  }, [userToken]);
 
   const handleOpenVault = () => {
     navigate("/passwordvault"); 

@@ -9,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
 function PasswordVault() {
   const navigate = useNavigate();
   const { userToken } = useAuth();
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [passwordServices, setPasswordServices] = useState([]);
   const [passwordData, setPasswordData] = useState({});
@@ -26,12 +27,12 @@ function PasswordVault() {
     }
   }, [userToken, navigate]);
 
-  // Modify this useEffect to prevent infinite loading when there are no passwords
+
   useEffect(() => {
     if (passwordServices.length > 0) {
       fetchPasswordDetails();
     } else {
-      // If there are no passwords, set loading to false
+
       setLoading(false);
     }
   }, [passwordServices]);
@@ -40,7 +41,7 @@ function PasswordVault() {
     setLoading(true);
     setError(null);
     
-    fetch("http://localhost:5001/api/passwords", {
+    fetch(`${API_URL}/api/passwords`, {
       headers: {
         Authorization: `Bearer ${userToken}`,
       },
@@ -52,9 +53,9 @@ function PasswordVault() {
         return response.json();
       })
       .then((data) => {
-        console.log("Password list fetched:", data);
+        // console.log("Password list fetched:", data);
         setPasswordServices(data);
-        // If the data array is empty, this will trigger the useEffect which sets loading to false
+
       })
       .catch((error) => {
         console.error("Error fetching password list:", error);
@@ -69,7 +70,7 @@ function PasswordVault() {
     
     try {
       for (const pwd of passwordServices) {
-        const response = await fetch(`http://localhost:5001/api/passwords/${pwd.serviceId}`, {
+        const response = await fetch(`${API_URL}/api/passwords/${pwd.serviceId}`, {
           headers: {
             Authorization: `Bearer ${userToken}`,
           },
@@ -81,7 +82,7 @@ function PasswordVault() {
 
         const detailData = await response.json();
         passwordDetailsMap[pwd.serviceId] = detailData;
-        console.log(detailData); // Log the detailData for debugging
+        // console.log(detailData);
       }
       
       setPasswordData(passwordDetailsMap);
@@ -106,8 +107,8 @@ function PasswordVault() {
 
   const handleDeletePassword = (serviceId) => {
     if (window.confirm("Are you sure you want to delete this password?")) {
-      // Using the specific delete route provided in your API
-      fetch(`http://localhost:5001/api/passwords/delete/${serviceId}`, {
+
+      fetch(`${API_URL}/api/passwords/delete/${serviceId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${userToken}`,
@@ -120,7 +121,7 @@ function PasswordVault() {
           return response.json();
         })
         .then(() => {
-          // Refresh the password list
+
           fetchPasswordList();
         })
         .catch((error) => {
@@ -146,10 +147,10 @@ function PasswordVault() {
 
   
   const copyPassword = (serviceId) => {
-    const correctServiceId = Object.keys(passwordData)[0]; // Get actual key
+    const correctServiceId = Object.keys(passwordData)[0];
   
-    console.log("Correct Service ID:", correctServiceId);
-    console.log("Passed Service ID:", serviceId);
+    // console.log("Correct Service ID:", correctServiceId);
+    // console.log("Passed Service ID:", serviceId);
   
     if (serviceId !== correctServiceId) {
       console.error("Mismatched service ID!");
@@ -171,7 +172,7 @@ function PasswordVault() {
   
     navigator.clipboard.writeText(passwordToCopy)
       .then(() => {
-        console.log(`Copied password: ${passwordToCopy}`);
+        // console.log(`Copied password: ${passwordToCopy}`);
         setCopiedId(correctServiceId);
         setTimeout(() => setCopiedId(null), 2000);
       })
@@ -312,7 +313,7 @@ function PasswordVault() {
         </div>
       </main>
 
-      {/* Password Form Modal */}
+
       <PasswordFormModal 
         isOpen={isModalOpen} 
         onClose={handleModalClose}

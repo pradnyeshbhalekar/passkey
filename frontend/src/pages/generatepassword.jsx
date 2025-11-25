@@ -1,14 +1,18 @@
-import React, { useState } from "react";
-import { useAuth } from '../context/AuthContext'; // Import the AuthContext
+import React, { useState, useEffect } from "react";
+import { useAuth } from '../context/AuthContext';
 import { Copy, RefreshCw, Lock } from 'lucide-react';
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import ServiceNameModal from "../components/serviceNameModal";
 
-
 function PasswordGenerate() {
-  const { userToken } = useAuth(); 
-  console.log("User Token:", userToken); 
+  const { userToken } = useAuth();
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+  
+
+  useEffect(() => {
+    // console.log("User Token in PasswordGenerate:", userToken);
+  }, [userToken]);
 
   const [passwordLength, setPasswordLength] = useState(16);
   const [includeUppercase, setIncludeUppercase] = useState(true);
@@ -55,7 +59,12 @@ function PasswordGenerate() {
   };
 
   const handleSavePassword = (serviceName) => {
-    fetch('http://localhost:5001/api/passwords', {
+    if (!userToken) {
+      console.error("No user token available");
+      return;
+    }
+
+    fetch(`${API_URL}/api/passwords`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${userToken}`,
@@ -66,15 +75,20 @@ function PasswordGenerate() {
         password: generatedPassword,
       }),
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then(data => {
-      console.log('Password saved:', data);
-
+      // console.log('Password saved:', data);
     })
     .catch(error => {
       console.error('Error saving password:', error);
     });
   };
+
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

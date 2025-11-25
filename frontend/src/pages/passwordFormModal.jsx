@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 
 function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
   const { userToken } = useAuth();
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
   
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -23,7 +24,7 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
   const [saveStatus, setSaveStatus] = useState({ message: "", isError: false });
   const isEditMode = !!passwordToEdit;
 
-  // Update form when passwordToEdit changes
+
   useEffect(() => {
     if (passwordToEdit) {
       setFormData({
@@ -118,16 +119,16 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Prepare the request data
+
     const requestData = {
       serviceName: formData.title,
       password: formData.password,
     };
 
-    // URL and method differ based on whether we're editing or creating
-    const url = isEditMode 
-      ? `http://localhost:5001/api/passwords/update/${passwordToEdit.serviceId}`
-      : "http://localhost:5001/api/passwords";
+
+    const url = isEditMode
+      ? `${API_URL}/api/passwords/update/${passwordToEdit.serviceId}`
+      : `${API_URL}/api/passwords`;
     
     const method = isEditMode ? "PUT" : "POST";
 
@@ -152,7 +153,7 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
         });
 
         setTimeout(() => {
-          // Pass appropriate values back to parent component
+
           onClose(true, isEditMode, isEditMode ? { ...data, serviceId: passwordToEdit.serviceId } : null);
           resetForm();
         }, 1500);

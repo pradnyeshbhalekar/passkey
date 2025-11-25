@@ -11,10 +11,11 @@ import { useAuth } from "../context/AuthContext";
 const Login = () => {
   const navigate = useNavigate();
   const { setUserToken } = useAuth();
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
   const handleSuccess = async (credentialResponse) => {
     const token = credentialResponse.credential;
-    const res = await fetch('http://localhost:5001/auth/google', {
+    const res = await fetch(`${API_URL}/auth/google`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -23,8 +24,8 @@ const Login = () => {
     });
 
     const data = await res.json();
-    console.log("sent token");
-    console.log(data);
+    // console.log("sent token");
+    // console.log(data);
 
  
     setUserToken(data.token);
@@ -34,7 +35,7 @@ const Login = () => {
   };
 
   const handleFailure = () => {
-    console.log("Google Login Failed");
+    // console.log("Google Login Failed");
   };
 
   return (
