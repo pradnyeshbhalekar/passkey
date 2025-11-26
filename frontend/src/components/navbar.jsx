@@ -10,14 +10,14 @@ const Navbar = () => {
     localStorage.removeItem("token");
     navigate("/login");
   };
-  
+
 
   return (
     <nav className="py-4 px-6 shadow-md bg-white">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         
         {/* Logo */}
-        <a href="/" className="text-blue-600 font-bold text-2xl md:text-3xl">
+        <a href="/" className="text-blue-600 font-jersey10 font-bold text-2xl md:text-3xl">
           PASSKEY
         </a>
 
@@ -31,12 +31,12 @@ const Navbar = () => {
 
         {/* Desktop Menu */}
         <div className="hidden md:flex space-x-6">
-          <a href="/" className="text-blue-600 hover:text-blue-700 text-xl">Home</a>
-          <a href="/about" className="text-blue-600 hover:text-blue-700 text-xl">About</a>
-          <a href="/faqs" className="text-blue-600 hover:text-blue-700 text-xl">FAQs</a>
+          <a href="/" className="text-blue-600 hover:text-blue-700 text-xl font-jersey10">Home</a>
+          <a href="/about" className="text-blue-600 hover:text-blue-700 text-xl font-jersey10">About</a>
+          <a href="/faqs" className="text-blue-600 hover:text-blue-700 text-xl font-jersey10">FAQs</a>
 
           {location.pathname !== "/login" && (
-            <button onClick={handleLogout} className="text-blue-600 hover:text-blue-700 text-xl">
+            <button onClick={handleLogout} className="text-blue-600 font-jersey10 hover:text-blue-700 text-xl">
               Logout
             </button>
           )}
@@ -46,12 +46,12 @@ const Navbar = () => {
       {/* Mobile Slide Menu */}
       {open && (
         <div className="flex flex-col mt-3 space-y-3 md:hidden">
-          <a href="/" className="text-blue-600 hover:text-blue-700 text-lg">Home</a>
-          <a href="/about" className="text-blue-600 hover:text-blue-700 text-lg">About</a>
-          <a href="/faqs" className="text-blue-600 hover:text-blue-700 text-lg">FAQs</a>
+          <a href="/" className="text-blue-600 hover:text-blue-700 text-lg font-jersey10">Home</a>
+          <a href="/about" className="text-blue-600 hover:text-blue-700 text-lg font-jersey10">About</a>
+          <a href="/faqs" className="text-blue-600 hover:text-blue-700 text-lg font-jersey10">FAQs</a>
 
           {location.pathname !== "/login" && (
-            <button onClick={handleLogout} className="text-blue-600 hover:text-blue-700 text-lg text-left">
+            <button onClick={handleLogout} className="text-blue-600 hover:text-blue-700 text-lg text-left font-jersey10">
               Logout
             </button>
           )}
