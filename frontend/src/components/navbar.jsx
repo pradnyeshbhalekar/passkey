@@ -10,6 +10,7 @@ const Navbar = () => {
     localStorage.removeItem("token");
     navigate("/login");
   };
+  
 
   return (
     <nav className="py-4 px-6 shadow-md bg-white">
