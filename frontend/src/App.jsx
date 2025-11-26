@@ -9,8 +9,9 @@ import AboutPage from "./pages/about";
 import FAQs from "./pages/faqs";
 
 function App() {
+  const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
   return (
-    <GoogleOAuthProvider clientId="163347937921-01e9n4h35ur90tua7aejtsunoa2uubgl.apps.googleusercontent.com">
+    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
       <AuthProvider>
         <Router>
           <Routes>
