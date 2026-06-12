@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { PlusCircle, Lock, AlertCircle, Eye, EyeOff, Copy, Check, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Lock, AlertCircle, Eye, EyeOff, Copy, Check, Edit, Trash2 } from "lucide-react";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import PasswordFormModal from "../pages/passwordFormModal";
 import { useAuth } from "../context/AuthContext";
+import { decryptPassword } from "../utils/crypto";
 
 function PasswordVault() {
   const navigate = useNavigate();
-  const { userToken } = useAuth();
+  const { userToken, userEncryptionKey } = useAuth();
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [passwordServices, setPasswordServices] = useState([]);
@@ -18,29 +19,29 @@ function PasswordVault() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [passwordToEdit, setPasswordToEdit] = useState(null);
-  
+
   useEffect(() => {
     if (userToken) {
       fetchPasswordList();
     } else {
-      navigate('/login');
+      navigate("/login");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userToken, navigate]);
-
 
   useEffect(() => {
     if (passwordServices.length > 0) {
       fetchPasswordDetails();
     } else {
-
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [passwordServices]);
 
   const fetchPasswordList = () => {
     setLoading(true);
     setError(null);
-    
+
     fetch(`${API_URL}/api/passwords`, {
       headers: {
         Authorization: `Bearer ${userToken}`,
@@ -53,9 +54,7 @@ function PasswordVault() {
         return response.json();
       })
       .then((data) => {
-        // console.log("Password list fetched:", data);
         setPasswordServices(data);
-
       })
       .catch((error) => {
         console.error("Error fetching password list:", error);
@@ -67,7 +66,7 @@ function PasswordVault() {
   const fetchPasswordDetails = async () => {
     const passwordDetailsMap = {};
     setLoading(true);
-    
+
     try {
       for (const pwd of passwordServices) {
         const response = await fetch(`${API_URL}/api/passwords/${pwd.serviceId}`, {
@@ -81,10 +80,26 @@ function PasswordVault() {
         }
 
         const detailData = await response.json();
-        passwordDetailsMap[pwd.serviceId] = detailData;
-        // console.log(detailData);
+
+        // Decrypt password client-side using the user-specific key
+        let decrypted = "";
+        try {
+          if (detailData.encryptedPassword && userEncryptionKey) {
+            decrypted = decryptPassword(detailData.encryptedPassword, userEncryptionKey);
+          } else {
+            decrypted = "••••••••••••";
+          }
+        } catch (decryptionErr) {
+          console.error(`Client decryption failed for service ${pwd.serviceId}:`, decryptionErr);
+          decrypted = "[Decryption Error]";
+        }
+
+        passwordDetailsMap[pwd.serviceId] = {
+          ...detailData,
+          decryptedPassword: decrypted,
+        };
       }
-      
+
       setPasswordData(passwordDetailsMap);
       setLoading(false);
     } catch (error) {
@@ -93,21 +108,20 @@ function PasswordVault() {
       setLoading(false);
     }
   };
-  
+
   const handleAddPassword = () => {
     setPasswordToEdit(null);
     setIsModalOpen(true);
   };
-  
+
   const handleUpdatePassword = (serviceId) => {
     const passwordToUpdate = passwordData[serviceId];
-    setPasswordToEdit(passwordToUpdate);
+    setPasswordToEdit({ ...passwordToUpdate, serviceId });
     setIsModalOpen(true);
   };
 
   const handleDeletePassword = (serviceId) => {
     if (window.confirm("Are you sure you want to delete this password?")) {
-
       fetch(`${API_URL}/api/passwords/delete/${serviceId}`, {
         method: "DELETE",
         headers: {
@@ -121,7 +135,6 @@ function PasswordVault() {
           return response.json();
         })
         .then(() => {
-
           fetchPasswordList();
         })
         .catch((error) => {
@@ -130,7 +143,7 @@ function PasswordVault() {
         });
     }
   };
-  
+
   const handleModalClose = (passwordAdded = false) => {
     setIsModalOpen(false);
     if (passwordAdded) {
@@ -139,44 +152,34 @@ function PasswordVault() {
   };
 
   const togglePasswordVisibility = (id) => {
-    setVisiblePasswords(prev => ({
+    setVisiblePasswords((prev) => ({
       ...prev,
-      [id]: !prev[id]
+      [id]: !prev[id],
     }));
   };
 
-  
+  // Fixed copyPassword bug (copies password using passed serviceId)
   const copyPassword = (serviceId) => {
-    const correctServiceId = Object.keys(passwordData)[0];
-  
-    // console.log("Correct Service ID:", correctServiceId);
-    // console.log("Passed Service ID:", serviceId);
-  
-    if (serviceId !== correctServiceId) {
-      console.error("Mismatched service ID!");
-      return;
-    }
-  
-    const passwordDetail = passwordData[correctServiceId];
-  
+    const passwordDetail = passwordData[serviceId];
+
     if (!passwordDetail) {
-      console.error("No password found for ID:", correctServiceId);
+      console.error("No password found for ID:", serviceId);
       return;
     }
-  
+
     const passwordToCopy = passwordDetail.decryptedPassword;
-    if (!passwordToCopy) {
-      console.error("Decrypted password is missing!");
+    if (!passwordToCopy || passwordToCopy === "[Decryption Error]") {
+      console.error("Decrypted password is missing or corrupted!");
       return;
     }
-  
-    navigator.clipboard.writeText(passwordToCopy)
+
+    navigator.clipboard
+      .writeText(passwordToCopy)
       .then(() => {
-        // console.log(`Copied password: ${passwordToCopy}`);
-        setCopiedId(correctServiceId);
+        setCopiedId(serviceId);
         setTimeout(() => setCopiedId(null), 2000);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Failed to copy password:", err);
       });
   };
@@ -184,12 +187,12 @@ function PasswordVault() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
-      
+
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-5xl font-medium text-blue-600 font-jersey10 tracking-wider">Personal</h1>
-            <button 
+            <button
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium flex items-center font-jersey15"
               onClick={handleAddPassword}
             >
@@ -205,10 +208,7 @@ function PasswordVault() {
           ) : error ? (
             <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
               <p>Error: {error}</p>
-              <button 
-                className="mt-2 text-blue-600 hover:underline"
-                onClick={fetchPasswordList}
-              >
+              <button className="mt-2 text-blue-600 hover:underline" onClick={fetchPasswordList}>
                 Try again
               </button>
             </div>
@@ -221,7 +221,7 @@ function PasswordVault() {
               <p className="text-gray-600 mb-8 max-w-md mx-auto">
                 Add your first password to start building your secure vault. Your credentials will be encrypted and safely stored.
               </p>
-              <button 
+              <button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium flex items-center mx-auto font-jersey15"
                 onClick={handleAddPassword}
               >
@@ -253,31 +253,31 @@ function PasswordVault() {
                                 ) : (
                                   <span>••••••••••••</span>
                                 )}
-                                <button 
-                                  onClick={() => togglePasswordVisibility(pwd.serviceId)} 
+                                <button
+                                  onClick={() => togglePasswordVisibility(pwd.serviceId)}
                                   className="ml-2 text-gray-500 hover:text-blue-600"
                                   title={visiblePasswords[pwd.serviceId] ? "Hide password" : "Show password"}
                                 >
                                   {visiblePasswords[pwd.serviceId] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => copyPassword(pwd.serviceId)}
                                   className="ml-1 text-gray-500 hover:text-blue-600"
                                   title="Copy password"
                                 >
                                   {copiedId === pwd.serviceId ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                                 </button>
-                                
+
                                 <div className="ml-2 border-l border-gray-300 pl-2 flex">
-                                  <button 
-                                    onClick={() => handleUpdatePassword(pwd.serviceId)} 
+                                  <button
+                                    onClick={() => handleUpdatePassword(pwd.serviceId)}
                                     className="text-gray-500 hover:text-blue-600 mr-1"
                                     title="Update password"
                                   >
                                     <Edit className="w-4 h-4" />
                                   </button>
-                                  <button 
-                                    onClick={() => handleDeletePassword(pwd.serviceId)} 
+                                  <button
+                                    onClick={() => handleDeletePassword(pwd.serviceId)}
                                     className="text-gray-500 hover:text-red-600"
                                     title="Delete password"
                                   >
@@ -313,11 +313,10 @@ function PasswordVault() {
         </div>
       </main>
 
-
-      <PasswordFormModal 
-        isOpen={isModalOpen} 
+      <PasswordFormModal
+        isOpen={isModalOpen}
         onClose={handleModalClose}
-        passwordToEdit={passwordToEdit} 
+        passwordToEdit={passwordToEdit}
       />
 
       <Footer />

@@ -1,46 +1,60 @@
 import { GoogleLogin } from "@react-oauth/google";
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import loginImage from "../assests/images/login.png";
-import '../styles/fonts.css'
+import "../styles/fonts.css";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 
-
 const Login = () => {
   const navigate = useNavigate();
-  const { setUserToken } = useAuth();
+  const { login } = useAuth();
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+  const [error, setError] = useState("");
 
   const handleSuccess = async (credentialResponse) => {
-    const token = credentialResponse.credential;
-    const res = await fetch(`${API_URL}/auth/google`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ token })
-    });
+    try {
+      setError("");
+      const token = credentialResponse.credential;
+      console.log("Using API_URL:", API_URL);
+      const res = await fetch(`${API_URL}/auth/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token }),
+      });
 
-    const data = await res.json();
-    // console.log("sent token");
-    // console.log(data);
+      const data = await res.json();
 
- 
-    setUserToken(data.token);
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
 
+      // Check if MFA check is required
+      if (data.mfaRequired) {
+        sessionStorage.setItem("tempToken", data.tempToken);
+        navigate("/verify-mfa");
+        return;
+      }
 
-    navigate("/");
+      // Log in directly
+      login(data.token, data.userEncryptionKey);
+      navigate("/");
+    } catch (err) {
+      console.error("Login verification error:", err);
+      setError(err.message || "Failed to complete authentication. Please try again.");
+    }
   };
 
   const handleFailure = () => {
-    // console.log("Google Login Failed");
+    setError("Google Sign-In failed. Please try again.");
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Navbar/>
+      <Navbar />
       <main className="flex-grow flex items-center">
         <div className="max-w-7xl mx-auto px-8 w-full">
           <div className="flex flex-col md:flex-row items-center justify-between gap-16">
@@ -56,17 +70,21 @@ const Login = () => {
               <h1 className="text-5xl font-medium text-blue-600 mb-8 font-jersey10 tracking-wider">
                 Your Vault, Just a Click Away
               </h1>
+
+              {error && (
+                <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-4 max-w-sm">
+                  {error}
+                </div>
+              )}
+
               <div className="flex justify-left">
-                <GoogleLogin
-                  onSuccess={handleSuccess}
-                  onError={handleFailure}
-                />
+                <GoogleLogin onSuccess={handleSuccess} onError={handleFailure} />
               </div>
             </div>
           </div>
         </div>
       </main>
-    <Footer/>
+      <Footer />
     </div>
   );
 };

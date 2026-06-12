@@ -4,12 +4,15 @@ import Home from "./pages/home";
 import Login from "./pages/login";
 import PasswordVault from "./pages/passwordvault";
 import PasswordGenerate from "./pages/generatepassword";
+import Settings from "./pages/settings";
+import VerifyMfa from "./pages/verifyMfa";
 import { AuthProvider } from "./context/AuthContext";
 import AboutPage from "./pages/about";
 import FAQs from "./pages/faqs";
 
 function App() {
-  const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+  console.log("Google Client ID:", process.env.REACT_APP_GOOGLE_CLIENT_ID);
+
   return (
     <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
       <AuthProvider>
@@ -19,10 +22,12 @@ function App() {
             <Route path="/passwordvault" element={<PasswordVault />} />
             <Route path="/generatepassword" element={<PasswordGenerate />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/verify-mfa" element={<VerifyMfa />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/faqs" element={<FAQs />} />
           </Routes>
-        </Router> 
+        </Router>
       </AuthProvider>
     </GoogleOAuthProvider>
   );

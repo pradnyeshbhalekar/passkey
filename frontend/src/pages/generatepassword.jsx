@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from '../context/AuthContext';
-import { Copy, RefreshCw, Lock } from 'lucide-react';
+import { useAuth } from "../context/AuthContext";
+import { RefreshCw, Lock } from "lucide-react";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import ServiceNameModal from "../components/serviceNameModal";
+import { encryptPassword } from "../utils/crypto";
 
 function PasswordGenerate() {
-  const { userToken } = useAuth();
+  const { userToken, userEncryptionKey } = useAuth();
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
-  
-
-  useEffect(() => {
-    // console.log("User Token in PasswordGenerate:", userToken);
-  }, [userToken]);
 
   const [passwordLength, setPasswordLength] = useState(16);
   const [includeUppercase, setIncludeUppercase] = useState(true);
@@ -22,39 +18,47 @@ function PasswordGenerate() {
   const [generatedPassword, setGeneratedPassword] = useState("eYd4w!$Z1rPbl6N8jO7o");
   const [copyMessage, setCopyMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+
+  useEffect(() => {
+    handleGeneratePassword();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGeneratePassword = () => {
     const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const lowercase = "abcdefghijklmnopqrstuvwxyz";
     const symbols = "!@#$%^&*()_+-=[]{}|;:,./<>?";
     const numbers = "0123456789";
-    
+
     let chars = "";
     if (includeUppercase) chars += uppercase;
     if (includeLowercase) chars += lowercase;
     if (includeSymbols) chars += symbols;
     if (includeNumbers) chars += numbers;
-    
+
     if (chars === "") chars = lowercase;
-    
+
     let password = "";
     for (let i = 0; i < passwordLength; i++) {
       const randomIndex = Math.floor(Math.random() * chars.length);
       password += chars[randomIndex];
     }
-    
+
     setGeneratedPassword(password);
     setCopyMessage("");
+    setSaveMessage("");
   };
 
   const handleCopyPassword = () => {
-    navigator.clipboard.writeText(generatedPassword)
+    navigator.clipboard
+      .writeText(generatedPassword)
       .then(() => {
         setCopyMessage("Password copied to clipboard!");
         setTimeout(() => setCopyMessage(""), 3000);
       })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
+      .catch((err) => {
+        console.error("Failed to copy: ", err);
       });
   };
 
@@ -64,36 +68,52 @@ function PasswordGenerate() {
       return;
     }
 
+    if (!userEncryptionKey) {
+      setSaveMessage("Error: encryption key not loaded. Please log in again.");
+      return;
+    }
+
+    // SECURITY PATCH: Encrypt password client-side before sending
+    let encrypted = "";
+    try {
+      encrypted = encryptPassword(generatedPassword, userEncryptionKey);
+    } catch (err) {
+      console.error("Vulnerability patch failed to encrypt password:", err);
+      setSaveMessage("Error: Cryptographic operation failed.");
+      return;
+    }
+
     fetch(`${API_URL}/api/passwords`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${userToken}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userToken}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         serviceName: serviceName,
-        password: generatedPassword,
+        password: encrypted,
       }),
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      // console.log('Password saved:', data);
-    })
-    .catch(error => {
-      console.error('Error saving password:', error);
-    });
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setSaveMessage(`Password saved successfully for ${serviceName}!`);
+        setTimeout(() => setSaveMessage(""), 4000);
+      })
+      .catch((error) => {
+        console.error("Error saving password:", error);
+        setSaveMessage("Error: Failed to save password to vault.");
+      });
   };
-
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
-      
+
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex justify-between items-center mb-8">
@@ -105,12 +125,12 @@ function PasswordGenerate() {
               <label htmlFor="passwordLength" className="block mb-2 text-lg font-medium text-gray-800 font-jersey10">
                 Password Length: {passwordLength} characters
               </label>
-              <input 
-                type="range" 
-                id="passwordLength" 
-                min="8" 
-                max="32" 
-                value={passwordLength} 
+              <input
+                type="range"
+                id="passwordLength"
+                min="8"
+                max="32"
+                value={passwordLength}
                 onChange={(e) => setPasswordLength(parseInt(e.target.value))}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
               />
@@ -118,10 +138,10 @@ function PasswordGenerate() {
 
             <div className="space-y-4 mb-8">
               <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="includeUppercase" 
-                  checked={includeUppercase} 
+                <input
+                  type="checkbox"
+                  id="includeUppercase"
+                  checked={includeUppercase}
                   onChange={(e) => setIncludeUppercase(e.target.checked)}
                   className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                 />
@@ -131,10 +151,10 @@ function PasswordGenerate() {
               </div>
 
               <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="includeLowercase" 
-                  checked={includeLowercase} 
+                <input
+                  type="checkbox"
+                  id="includeLowercase"
+                  checked={includeLowercase}
                   onChange={(e) => setIncludeLowercase(e.target.checked)}
                   className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                 />
@@ -144,10 +164,10 @@ function PasswordGenerate() {
               </div>
 
               <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="includeSymbols" 
-                  checked={includeSymbols} 
+                <input
+                  type="checkbox"
+                  id="includeSymbols"
+                  checked={includeSymbols}
                   onChange={(e) => setIncludeSymbols(e.target.checked)}
                   className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                 />
@@ -157,10 +177,10 @@ function PasswordGenerate() {
               </div>
 
               <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="includeNumbers" 
-                  checked={includeNumbers} 
+                <input
+                  type="checkbox"
+                  id="includeNumbers"
+                  checked={includeNumbers}
                   onChange={(e) => setIncludeNumbers(e.target.checked)}
                   className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                 />
@@ -170,7 +190,7 @@ function PasswordGenerate() {
               </div>
             </div>
 
-            <button 
+            <button
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-3 rounded-md flex items-center justify-center font-jersey15 mb-8"
               onClick={handleGeneratePassword}
             >
@@ -181,28 +201,29 @@ function PasswordGenerate() {
             <div className="mb-4">
               <h2 className="text-xl font-medium text-gray-800 mb-4 font-jersey10">Strong password</h2>
               <div className="flex items-center">
-                <div className="flex-grow p-4 bg-gray-50 border border-gray-200 rounded-md font-mono text-lg">
+                <div className="flex-grow p-4 bg-gray-50 border border-gray-200 rounded-md font-mono text-lg select-all">
                   {generatedPassword}
                 </div>
-                <button 
+                <button
                   className="ml-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-6 py-4 rounded-md"
                   onClick={handleCopyPassword}
                 >
                   Copy
                 </button>
-                <button 
+                <button
                   className="ml-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-6 py-4 rounded-md"
                   onClick={() => setIsModalOpen(true)}
                 >
                   Save
                 </button>
               </div>
-              {copyMessage && (
-                <p className="text-green-600 mt-2">{copyMessage}</p>
+              {copyMessage && <p className="text-green-600 mt-2 font-medium">{copyMessage}</p>}
+              {saveMessage && (
+                <p className={`mt-2 font-medium ${saveMessage.startsWith("Error") ? "text-red-600" : "text-green-600"}`}>
+                  {saveMessage}
+                </p>
               )}
-              <p className="text-gray-500 mt-2">
-                The generated password is stored in your clipboard for 30 seconds.
-              </p>
+              <p className="text-gray-500 mt-2">The generated password is stored in your clipboard for 30 seconds.</p>
             </div>
           </div>
 
@@ -212,7 +233,8 @@ function PasswordGenerate() {
               <div>
                 <h3 className="text-lg font-medium text-gray-800 mb-2 font-jersey10">Security Tip</h3>
                 <p className="text-gray-600">
-                  Strong passwords should be at least 12 characters long and include a mix of uppercase, lowercase, numbers, and symbols. Using this generator helps create passwords that are difficult to crack.
+                  Strong passwords should be at least 12 characters long and include a mix of uppercase, lowercase,
+                  numbers, and symbols. Using this generator helps create passwords that are difficult to crack.
                 </p>
               </div>
             </div>
@@ -220,11 +242,7 @@ function PasswordGenerate() {
         </div>
       </main>
 
-      <ServiceNameModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSave={handleSavePassword} 
-      />
+      <ServiceNameModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSavePassword} />
       <Footer />
     </div>
   );

@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from "react";
-import {
-  X,
-  Eye,
-  EyeOff,
-  Copy,
-  Check,
-  ShieldCheck,
-  RefreshCw,
-} from "lucide-react";
+import { X, Eye, EyeOff, Copy, Check, ShieldCheck, RefreshCw } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { encryptPassword } from "../utils/crypto";
 
 function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
-  const { userToken } = useAuth();
+  const { userToken, userEncryptionKey } = useAuth();
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
-  
+
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -23,7 +16,6 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
   });
   const [saveStatus, setSaveStatus] = useState({ message: "", isError: false });
   const isEditMode = !!passwordToEdit;
-
 
   useEffect(() => {
     if (passwordToEdit) {
@@ -119,17 +111,36 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (!userEncryptionKey) {
+      setSaveStatus({
+        message: "Encryption key not loaded. Please re-authenticate.",
+        isError: true,
+      });
+      return;
+    }
+
+    // Secure the password using local client-side key before dispatching
+    let encryptedPasswordText = "";
+    try {
+      encryptedPasswordText = encryptPassword(formData.password, userEncryptionKey);
+    } catch (err) {
+      console.error("Client encryption error:", err);
+      setSaveStatus({
+        message: "Failed to encrypt password client-side.",
+        isError: true,
+      });
+      return;
+    }
 
     const requestData = {
       serviceName: formData.title,
-      password: formData.password,
+      password: encryptedPasswordText,
     };
-
 
     const url = isEditMode
       ? `${API_URL}/api/passwords/update/${passwordToEdit.serviceId}`
       : `${API_URL}/api/passwords`;
-    
+
     const method = isEditMode ? "PUT" : "POST";
 
     fetch(url, {
@@ -142,26 +153,25 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
     })
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Failed to ${isEditMode ? 'update' : 'save'} password`);
+          throw new Error(`Failed to ${isEditMode ? "update" : "save"} password`);
         }
         return response.json();
       })
       .then((data) => {
         setSaveStatus({
-          message: `Password ${isEditMode ? 'updated' : 'saved'} successfully!`,
+          message: `Password ${isEditMode ? "updated" : "saved"} successfully!`,
           isError: false,
         });
 
         setTimeout(() => {
-
-          onClose(true, isEditMode, isEditMode ? { ...data, serviceId: passwordToEdit.serviceId } : null);
+          onClose(true);
           resetForm();
         }, 1500);
       })
       .catch((error) => {
-        console.error(`Error ${isEditMode ? 'updating' : 'saving'} password:`, error);
+        console.error(`Error ${isEditMode ? "updating" : "saving"} password:`, error);
         setSaveStatus({
-          message: `Error ${isEditMode ? 'updating' : 'saving'} password. Please try again.`,
+          message: `Error ${isEditMode ? "updating" : "saving"} password. Please try again.`,
           isError: true,
         });
       });
@@ -179,12 +189,9 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
       <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-2xl font-jersey10 text-blue-600">
-            {isEditMode ? 'Update Password' : 'Add New Password'}
+            {isEditMode ? "Update Password" : "Add New Password"}
           </h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={handleClose} className="text-gray-500 hover:text-gray-700">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -192,10 +199,7 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-4">
             <div>
-              <label
-                className="block text-sm font-medium text-gray-700 mb-1"
-                htmlFor="title"
-              >
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="title">
                 Service Name
               </label>
               <input
@@ -211,10 +215,7 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
             </div>
 
             <div>
-              <label
-                className="block text-sm font-medium text-gray-700 mb-1"
-                htmlFor="password"
-              >
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="password">
                 Password
               </label>
               <div className="relative">
@@ -229,27 +230,15 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
                   required
                 />
                 <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex">
-                  <button
-                    type="button"
-                    onClick={copyPassword}
-                    className="p-1 text-gray-500 hover:text-blue-600"
-                  >
-                    {copied ? (
-                      <Check className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <Copy className="w-5 h-5" />
-                    )}
+                  <button type="button" onClick={copyPassword} className="p-1 text-gray-500 hover:text-blue-600">
+                    {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
                   </button>
                   <button
                     type="button"
                     onClick={togglePasswordVisibility}
                     className="p-1 text-gray-500 hover:text-blue-600"
                   >
-                    {passwordVisible ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {passwordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
@@ -259,35 +248,25 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
                   <div className="text-sm flex items-center">
                     <span
                       className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                        passwordStrength >= 25
-                          ? getStrengthColor()
-                          : "bg-gray-300"
+                        passwordStrength >= 25 ? getStrengthColor() : "bg-gray-300"
                       }`}
                     ></span>
                     <span
                       className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                        passwordStrength >= 50
-                          ? getStrengthColor()
-                          : "bg-gray-300"
+                        passwordStrength >= 50 ? getStrengthColor() : "bg-gray-300"
                       }`}
                     ></span>
                     <span
                       className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                        passwordStrength >= 75
-                          ? getStrengthColor()
-                          : "bg-gray-300"
+                        passwordStrength >= 75 ? getStrengthColor() : "bg-gray-300"
                       }`}
                     ></span>
                     <span
                       className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                        passwordStrength >= 100
-                          ? getStrengthColor()
-                          : "bg-gray-300"
+                        passwordStrength >= 100 ? getStrengthColor() : "bg-gray-300"
                       }`}
                     ></span>
-                    <span className="ml-2 text-gray-600">
-                      {formData.password ? getStrengthText() : ""}
-                    </span>
+                    <span className="ml-2 text-gray-600">{formData.password ? getStrengthText() : ""}</span>
                   </div>
                   <button
                     type="button"
@@ -299,10 +278,7 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
                   </button>
                 </div>
                 <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${getStrengthColor()}`}
-                    style={{ width: `${passwordStrength}%` }}
-                  ></div>
+                  <div className={`h-full ${getStrengthColor()}`} style={{ width: `${passwordStrength}%` }}></div>
                 </div>
               </div>
             </div>
@@ -310,17 +286,14 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
             <div className="bg-blue-50 p-4 rounded-md flex items-start">
               <ShieldCheck className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-gray-700">
-                Your password will be encrypted using AES-256 encryption before
-                being stored in your vault.
+                Your password will be encrypted client-side using AES-256 before being stored in your vault.
               </p>
             </div>
 
             {saveStatus.message && (
               <div
                 className={`p-3 rounded-md ${
-                  saveStatus.isError
-                    ? "bg-red-100 text-red-700"
-                    : "bg-green-100 text-green-700"
+                  saveStatus.isError ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
                 }`}
               >
                 {saveStatus.message}
@@ -336,11 +309,8 @@ function PasswordFormModal({ isOpen, onClose, passwordToEdit }) {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md font-jersey15"
-            >
-              {isEditMode ? 'Update' : 'Save'} Password
+            <button type="submit" className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md font-jersey15">
+              {isEditMode ? "Update" : "Save"} Password
             </button>
           </div>
         </form>
