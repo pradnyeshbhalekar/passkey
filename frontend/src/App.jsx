@@ -11,10 +11,11 @@ import AboutPage from "./pages/about";
 import FAQs from "./pages/faqs";
 
 function App() {
-  console.log("Google Client ID:", process.env.REACT_APP_GOOGLE_CLIENT_ID);
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  console.log("Google Client ID:", googleClientId);
 
   return (
-    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider clientId={googleClientId}>
       <AuthProvider>
         <Router>
           <Routes>
